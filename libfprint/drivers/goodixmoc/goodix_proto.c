@@ -365,9 +365,11 @@ gx_proto_parse_body (uint16_t cmd, uint8_t *buffer, uint16_t buffer_len, pgxfp_c
           if (buffer_len < 3)
             return -1;
           uint16_t tid_size = GUINT16_FROM_LE (*(uint16_t *) (buffer + 1));
-          if ((buffer_len < tid_size + 3) || (buffer_len > sizeof (template_format_t)) + 3)
+
+          if (buffer_len < tid_size + 3 + 2)
             return -1;
-          memcpy (&presp->check_duplicate_resp.template, buffer + 3, tid_size);
+          if (gx_proto_parse_fingerid (buffer + 3, tid_size, &presp->check_duplicate_resp.template) != 0)
+            return -1;
         }
       break;
 
@@ -405,7 +407,7 @@ gx_proto_parse_body (uint16_t cmd, uint8_t *buffer, uint16_t buffer_len, pgxfp_c
         presp->verify.match = (buffer[0] == 0) ? true : false;
         if (presp->verify.match)
           {
-            if (buffer_len < sizeof (template_format_t) + 10)
+            if (buffer_len < 10)
               return -1;
             offset += 1;
             presp->verify.rejectdetail = GUINT16_FROM_LE (*(uint16_t *) (buffer + offset));
@@ -416,6 +418,8 @@ gx_proto_parse_body (uint16_t cmd, uint8_t *buffer, uint16_t buffer_len, pgxfp_c
             offset += 1;
             fingerid_size = GUINT16_FROM_LE (*(uint16_t *) (buffer + offset));
             offset += 2;
+            if (buffer_len < fingerid_size + offset + 2)
+              return -1;
             if (gx_proto_parse_fingerid (buffer + offset, fingerid_size, &presp->verify.template) != 0)
               {
                 presp->result = GX_FAILED;
